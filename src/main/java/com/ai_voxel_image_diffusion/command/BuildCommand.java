@@ -1,5 +1,7 @@
 package com.ai_voxel_image_diffusion.command;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -41,15 +43,26 @@ public class BuildCommand {
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 String body = response.body();
 
+                // Parse schematic_path from JSON response, e.g. {"schematic_path": "test.schem"}
+                JsonObject json2 = JsonParser.parseString(body).getAsJsonObject();
+                String schematicPath = json2.get("schematic_path").getAsString();
+                // WorldEdit expects the name without the .schem extension
+                String schematicName = schematicPath.endsWith(".schem")
+                        ? schematicPath.substring(0, schematicPath.length() - 6)
+                        : schematicPath;
+
                 // Switch back to the main server thread for Minecraft interactions
                 source.getServer().execute(() -> {
-                    source.sendSuccess(() -> Component.literal("[Build] Response: " + body), false);
+                    source.sendSuccess(() -> Component.literal("[Build] Loading schematic: " + schematicName), false);
 
-                    // Run WorldEdit's paste command as the player
                     try {
-                        source.getServer().getCommands().performPrefixedCommand(source, "paste");
+                        // Load the schematic into the WorldEdit clipboard
+                        source.getServer().getCommands().performPrefixedCommand(source, "//schem load " + schematicName);
+                        // Paste it at the player's position
+                        source.getServer().getCommands().performPrefixedCommand(source, "//paste");
+                        source.sendSuccess(() -> Component.literal("[Build] Pasted \"" + schematicName + "\" successfully."), false);
                     } catch (Exception e) {
-                        source.sendFailure(Component.literal("[Build] WorldEdit paste failed: " + e.getMessage()));
+                        source.sendFailure(Component.literal("[Build] WorldEdit command failed: " + e.getMessage()));
                     }
                 });
 
