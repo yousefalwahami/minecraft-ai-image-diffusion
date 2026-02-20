@@ -1,4 +1,4 @@
-package com.example.mixin;
+package com.ai_voxel_image_diffusion.mixin;
 
 import net.minecraft.server.MinecraftServer;
 import org.spongepowered.asm.mixin.Mixin;

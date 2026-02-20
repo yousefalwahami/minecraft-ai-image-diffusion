@@ -1,4 +1,4 @@
-package com.example;
+package com.ai_voxel_image_diffusion;
 
 import net.fabricmc.api.ClientModInitializer;
 

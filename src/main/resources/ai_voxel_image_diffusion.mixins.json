@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "com.example.mixin",
+	"package": "com.ai_voxel_image_diffusion.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
 		"ExampleMixin"

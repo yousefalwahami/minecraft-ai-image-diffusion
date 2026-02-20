@@ -1,41 +1,35 @@
 {
-	"schemaVersion": 1,
-	"id": "modid",
-	"version": "${version}",
-	"name": "Example mod",
-	"description": "This is an example description! Tell everyone what your mod is about!",
-	"authors": [
-		"Me!"
-	],
-	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
-	},
-	"license": "CC0-1.0",
-	"icon": "assets/modid/icon.png",
-	"environment": "*",
-	"entrypoints": {
-		"main": [
-			"com.example.ExampleMod"
-		],
-		"client": [
-			"com.example.ExampleModClient"
-		]
-	},
-	"mixins": [
-		"modid.mixins.json",
-		{
-			"config": "modid.client.mixins.json",
-			"environment": "client"
-		}
-	],
-	"depends": {
-		"fabricloader": ">=0.18.2",
-		"minecraft": "~1.21.11",
-		"java": ">=21",
-		"fabric-api": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
-	}
+  "schemaVersion": 1,
+  "id": "ai_voxel_image_diffusion",
+  "version": "${version}",
+  "name": "AI Image Diffusion",
+  "description": "This is an example description! Tell everyone what your mod is about!",
+  "authors": ["Me!"],
+  "contact": {
+    "homepage": "https://fabricmc.net/",
+    "sources": "https://github.com/yousefalwahami/minecraft-ai-image-diffusion"
+  },
+  "license": "CC0-1.0",
+  "icon": "assets/ai_voxel_image_diffusion/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.ai_voxel_image_diffusion.ExampleMod"],
+    "client": ["com.ai_voxel_image_diffusion.ExampleModClient"]
+  },
+  "mixins": [
+    "ai_voxel_image_diffusion.mixins.json",
+    {
+      "config": "ai_voxel_image_diffusion.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.2",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
 }

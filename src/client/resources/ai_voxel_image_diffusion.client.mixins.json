@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "com.example.mixin.client",
+	"package": "com.ai_voxel_image_diffusion.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"ExampleClientMixin"
