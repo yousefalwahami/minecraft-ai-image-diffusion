@@ -33,7 +33,9 @@ public class BuildCommand {
         CompletableFuture.runAsync(() -> {
             try {
                 String json = "{\"prompt\":\"" + description.replace("\"", "\\\"") + "\"}";
-                HttpClient client = HttpClient.newHttpClient();
+                HttpClient client = HttpClient.newBuilder()
+                        .version(HttpClient.Version.HTTP_1_1)
+                        .build();
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create("http://localhost:8000/generate"))
                         .header("Content-Type", "application/json")
@@ -42,10 +44,34 @@ public class BuildCommand {
 
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 String body = response.body();
+                int status = response.statusCode();
+
+                if (status != 200) {
+                    source.getServer().execute(() ->
+                        source.sendFailure(Component.literal("[Build] Server error (HTTP " + status + "): " + body))
+                    );
+                    return;
+                }
 
                 // Parse schematic_path from JSON response, e.g. {"schematic_path": "test.schem"}
-                JsonObject json2 = JsonParser.parseString(body).getAsJsonObject();
-                String schematicPath = json2.get("schematic_path").getAsString();
+                JsonObject jsonResponse;
+                try {
+                    jsonResponse = JsonParser.parseString(body).getAsJsonObject();
+                } catch (Exception parseEx) {
+                    source.getServer().execute(() ->
+                        source.sendFailure(Component.literal("[Build] Invalid response from server: " + body))
+                    );
+                    return;
+                }
+
+                if (!jsonResponse.has("schematic_path") || jsonResponse.get("schematic_path").isJsonNull()) {
+                    source.getServer().execute(() ->
+                        source.sendFailure(Component.literal("[Build] Server response missing 'schematic_path': " + body))
+                    );
+                    return;
+                }
+
+                String schematicPath = jsonResponse.get("schematic_path").getAsString();
                 // WorldEdit expects the name without the .schem extension
                 String schematicName = schematicPath.endsWith(".schem")
                         ? schematicPath.substring(0, schematicPath.length() - 6)
