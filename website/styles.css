@@ -1,0 +1,18 @@
+@font-face {
+    font-family: 'MinecraftFont'; /* You can name this anything */
+    src: url('./assets/Minecraft.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: 'MinecraftFont', sans-serif;
+    background-color: rgb(35, 179, 71);
+}
+
+h1 {
+    font-family: 'MinecraftFont', sans-serif;
+    font-weight: 200;
+    text-align: center;
+    margin-top: 20px;
+}

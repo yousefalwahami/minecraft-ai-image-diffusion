@@ -1,0 +1,1 @@
+// Handles .schem files (Craftmatic/NBT.js)
