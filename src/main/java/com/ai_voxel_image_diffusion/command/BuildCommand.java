@@ -72,10 +72,8 @@ public class BuildCommand {
                 }
 
                 String schematicPath = jsonResponse.get("schematic_path").getAsString();
-                // WorldEdit expects the name without the .schem extension
-                String schematicName = schematicPath.endsWith(".schem")
-                        ? schematicPath.substring(0, schematicPath.length() - 6)
-                        : schematicPath;
+                // Ensure we always pass the full filename with extension to WorldEdit
+                String schematicName = schematicPath.endsWith(".schem") ? schematicPath : schematicPath + ".schem";
 
                 // Switch back to the main server thread for Minecraft interactions
                 source.getServer().execute(() -> {
