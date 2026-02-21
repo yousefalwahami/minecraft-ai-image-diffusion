@@ -1,27 +1,51 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { initScene, renderVoxels } from './threeScene';
 
 export default function Home() {
-  const [voxels, setVoxels] = useState([]);
+  const [voxels, setVoxels] = useState<{ x: number; y: number; z: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState("");
 
+  const mountRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const edgesRef = useRef<THREE.LineSegments | null>(null);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+    const cleanup = initScene(mountRef.current, sceneRef, controlsRef);
+    return cleanup;
+  }, []);
+
+  // ── API call ────────────────────────────────────────────────────────────────
   const startBuild = async () => {
+    
     if (!prompt) return;
     setLoading(true);
+
     try {
-      console.log("Sending prompt to backend:", prompt);
-      const response = await fetch('/api/generate', {
+      
+      const response = await fetch('/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt: prompt }), // Matches your GenerateRequest model
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
       });
+
       const data = await response.json();
-      setVoxels(data.voxels);
+      const voxelList: { x: number; y: number; z: number }[] = data.voxels ?? [];
+      setVoxels(voxelList);
       console.log("Received voxel data:", data);
+
+      // Render into the live Three.js scene
+      if (sceneRef.current) {
+        renderVoxels(voxelList, sceneRef.current, meshRef, controlsRef, edgesRef);
+      }
+
     } catch (error) {
       console.error("Connection failed!", error);
     } finally {
@@ -29,20 +53,16 @@ export default function Home() {
     }
   };
 
+  // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <main className="relative h-screen w-full bg-slate-900 overflow-hidden">
-      {/* 3D CANVAS PLACEHOLDER */}
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-800 to-slate-950">
-         {/* Your Three.js Canvas will live here */}
-         <div className="flex items-center justify-center h-full text-slate-700 font-mono">
-            [ 3D Scene Active: {voxels.length} blocks ]
-         </div>
-      </div>
+      {/* THREE.JS CANVAS */}
+      <div ref={mountRef} className="absolute inset-0 z-0" />
 
       {/* UI OVERLAY */}
       <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
         <div className="max-w-md bg-black/60 backdrop-blur-md border-2 border-slate-700 p-6 rounded-none pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.5)]">
-          
+
           <h1 className="text-2xl font-bold text-white mb-1 tracking-tighter uppercase italic">
             Minecraft<span className="text-green-500 underline">AI</span>
           </h1>
@@ -51,7 +71,7 @@ export default function Home() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Input Prompt</label>
-              <input 
+              <input
                 type="text"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -60,12 +80,12 @@ export default function Home() {
               />
             </div>
 
-            <button 
+            <button
               onClick={startBuild}
               disabled={loading || !prompt}
               className={`w-full py-3 px-4 flex items-center justify-center gap-2 font-bold uppercase tracking-wider transition-all
-                ${loading 
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                ${loading
+                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-500 text-white active:scale-95 shadow-[4px_4px_0px_#052e16]'
                 }`}
             >
