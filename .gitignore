@@ -40,5 +40,23 @@ replay_*.log
 *.jfr
 
 
-# website
-/website/node_modules
+## website
+# --- Next.js / Node (Subfolder) ---
+website/node_modules/
+website/.next/
+website/out/
+website/build/
+website/.pnp
+website/.pnp.js
+
+# --- Python / FastAPI (Subfolder) ---
+website/venv/
+website/.venv/
+website/env/
+website/__pycache__/
+website/*.py[cod]
+website/.pytest_cache/
+
+# --- Environment & Secrets ---
+website/.env*
+website/.env.local
