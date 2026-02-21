@@ -32,71 +32,41 @@ public class BuildCommand {
 
         CompletableFuture.runAsync(() -> {
             try {
-                String json = "{\"prompt\":\"" + description.replace("\"", "\\\"") + "\"}";
-                HttpClient client = HttpClient.newBuilder()
-                        .version(HttpClient.Version.HTTP_1_1)
-                        .build();
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:8000/generate"))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(json))
-                        .build();
+                String body = sendGenerateRequest(description);
+                JsonObject jsonResponse = JsonParser.parseString(body).getAsJsonObject();
 
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                String body = response.body();
-                int status = response.statusCode();
-
-                if (status != 200) {
+                if (!jsonResponse.has("blocks")) {
                     source.getServer().execute(() ->
-                        source.sendFailure(Component.literal("[Build] Server error (HTTP " + status + "): " + body))
-                    );
+                        source.sendFailure(Component.literal("[Build] Server response missing 'blocks'")));
                     return;
                 }
 
-                // Parse schematic_path from JSON response, e.g. {"schematic_path": "test.schem"}
-                JsonObject jsonResponse;
-                try {
-                    jsonResponse = JsonParser.parseString(body).getAsJsonObject();
-                } catch (Exception parseEx) {
-                    source.getServer().execute(() ->
-                        source.sendFailure(Component.literal("[Build] Invalid response from server: " + body))
-                    );
-                    return;
-                }
-
-                if (!jsonResponse.has("schematic_path") || jsonResponse.get("schematic_path").isJsonNull()) {
-                    source.getServer().execute(() ->
-                        source.sendFailure(Component.literal("[Build] Server response missing 'schematic_path': " + body))
-                    );
-                    return;
-                }
-
-                String schematicPath = jsonResponse.get("schematic_path").getAsString();
-                // Ensure we always pass the full filename with extension to WorldEdit
-                String schematicName = schematicPath.endsWith(".schem") ? schematicPath : schematicPath + ".schem";
-
-                // Switch back to the main server thread for Minecraft interactions
-                source.getServer().execute(() -> {
-                    source.sendSuccess(() -> Component.literal("[Build] Loading schematic: " + schematicName), false);
-
-                    try {
-                        // Load the schematic into the WorldEdit clipboard
-                        source.getServer().getCommands().performPrefixedCommand(source, "//schem load " + schematicName);
-                        // Paste it at the player's position
-                        source.getServer().getCommands().performPrefixedCommand(source, "//paste");
-                        source.sendSuccess(() -> Component.literal("[Build] Pasted \"" + schematicName + "\" successfully."), false);
-                    } catch (Exception e) {
-                        source.sendFailure(Component.literal("[Build] WorldEdit command failed: " + e.getMessage()));
-                    }
-                });
+                source.getServer().execute(() -> BuildPlanner.plan(source, jsonResponse));
 
             } catch (Exception e) {
                 source.getServer().execute(() ->
-                    source.sendFailure(Component.literal("[Build] HTTP request failed: " + e.getMessage()))
-                );
+                    source.sendFailure(Component.literal("[Build] HTTP request failed: " + e.getMessage())));
             }
         });
 
         return 1;
+    }
+
+    private static String sendGenerateRequest(String description) throws Exception {
+        String json = "{\"prompt\":\"" + description.replace("\"", "\\\"") + "\"}";
+        HttpClient client = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:8000/generate"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Server error (HTTP " + response.statusCode() + "): " + response.body());
+        }
+        return response.body();
     }
 }
