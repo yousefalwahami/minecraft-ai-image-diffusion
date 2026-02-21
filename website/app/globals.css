@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@font-face {
+    font-family: 'MinecraftFont'; /* You can name this anything */
+    src: url('../assets/Minecraft.ttf') format('truetype');
+    font-style: normal;
+    font-weight: lighter;
+}
+
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'MinecraftFont', Arial, Helvetica, sans-serif;
+  font-weight: 200;
+}
