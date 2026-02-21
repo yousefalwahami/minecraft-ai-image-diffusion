@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+    font-family: 'MinecraftFont'; /* You can name this anything */
+    src: url('../assets/Minecraft.ttf') format('truetype');
+    font-style: normal;
+    font-weight: lighter;
+}
+
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -22,5 +30,6 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'MinecraftFont', Arial, Helvetica, sans-serif;
+  font-weight: 200;
 }
