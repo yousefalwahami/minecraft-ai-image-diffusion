@@ -61,10 +61,13 @@ website/.pytest_cache/
 website/.env*
 website/.env.local
 
+# schemgen
 **/blockstates/
 **/model/
 **/texture/
 *.pkl
+# piracy is bad, kids
+minecraft*.jar
 
 __pycache__/
 *.pyc
