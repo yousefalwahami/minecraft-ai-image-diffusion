@@ -60,3 +60,11 @@ website/.pytest_cache/
 # --- Environment & Secrets ---
 website/.env*
 website/.env.local
+
+**/blockstates/
+**/model/
+**/texture/
+*.pkl
+
+__pycache__/
+*.pyc

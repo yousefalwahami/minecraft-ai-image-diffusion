@@ -1,3 +1,6 @@
 fastapi
 uvicorn[standard]
 nbtlib
+colour-science
+scikit-learn
+mcschematic
