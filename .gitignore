@@ -71,3 +71,6 @@ minecraft*.jar
 
 __pycache__/
 *.pyc
+/.venv
+server/retrieval/faiss.index
+server/retrieval/index_map.json
