@@ -75,3 +75,4 @@ __pycache__/
 server/retrieval/faiss.index
 server/retrieval/index_map.json
 server/clip_cache.pt
+server/%APPDATA%\.minecraft\config\worldedit\schematics/generated.schem
