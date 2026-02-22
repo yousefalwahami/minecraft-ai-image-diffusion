@@ -76,3 +76,6 @@ server/retrieval/faiss.index
 server/retrieval/index_map.json
 server/clip_cache.pt
 server/%APPDATA%\.minecraft\config\worldedit\schematics/generated.schem
+server/%APPDATA%\.minecraft\config\worldedit\schematics/generated.schem
+server/plot_voxel.ipynb
+server/voxel_20041.png
