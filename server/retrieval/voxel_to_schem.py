@@ -1,7 +1,7 @@
 """
 Convert a blockgen-3d dataset sample to a Minecraft .schem file.
 
-The blockgen-3d dataset is loaded once at module import.
+The blockgen-3d dataset is loaded lazily on first use.
 """
 
 import sys
@@ -19,12 +19,30 @@ if str(_SCHEMGEN_DIR) not in sys.path:
 from col2block import col2block  # noqa: E402 (needs sys.path patch above)
 
 # ---------------------------------------------------------------------------
-# Dataset – loaded once at module level
+# Dataset – loaded lazily on first conversion request
 # ---------------------------------------------------------------------------
 
-print("[voxel_to_schem] Loading PeterAM4/blockgen-3d train split ...")
-_dataset = load_dataset("PeterAM4/blockgen-3d", split="train")
-print(f"[voxel_to_schem] Dataset ready – {len(_dataset)} samples")
+_dataset = None
+
+
+def _get_dataset():
+    global _dataset
+    if _dataset is None:
+        print("[voxel_to_schem] Streaming PeterAM4/blockgen-3d train split ...")
+        _dataset = load_dataset("PeterAM4/blockgen-3d", split="train", streaming=True)
+        print("[voxel_to_schem] Streaming dataset ready")
+    return _dataset
+
+
+def _get_sample(dataset_idx: int):
+    if dataset_idx < 0:
+        raise ValueError("dataset_idx must be non-negative")
+    dataset = _get_dataset()
+    sample_iter = iter(dataset.skip(dataset_idx).take(1))
+    try:
+        return next(sample_iter)
+    except StopIteration as exc:
+        raise IndexError(f"dataset_idx out of range: {dataset_idx}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +88,7 @@ def voxel_to_schem(dataset_idx: int, out_path: str) -> None:
     out_path  full path including .schem extension,
               e.g. "/tmp/gen_abc123/generated.schem"
     """
-    sample = _dataset[dataset_idx]
+    sample = _get_sample(dataset_idx)
 
     colors = np.array(sample["voxels_colors"], dtype=np.float32)    # [3,32,32,32]
     occ = np.array(sample["voxels_occupancy"], dtype=np.float32)    # [1,32,32,32]
