@@ -4,3 +4,8 @@ nbtlib
 colour-science
 scikit-learn
 mcschematic
+torch
+faiss-cpu
+git+https://github.com/openai/CLIP.git
+datasets
+numpy

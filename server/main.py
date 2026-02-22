@@ -1,17 +1,23 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import shutil
 import os
+import shutil
+import tempfile
+
 import nbtlib
 import uvicorn
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from retrieval.retrieve import index_size, load_index, retrieve
+from retrieval.voxel_to_schem import voxel_to_schem
 
 app = FastAPI()
 
 WORLDEDIT_SCHEMATICS_DIR = os.path.expandvars(r"%APPDATA%\.minecraft\config\worldedit\schematics")
-SCHEMATICS_SOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 class GenerateRequest(BaseModel):
     prompt: str
+
 
 def parse_schematic_blocks(path: str):
     try:
@@ -52,26 +58,47 @@ def parse_schematic_blocks(path: str):
         print(f"Error parsing schematic: {e}")
         return [], 0, 0, 0
 
+
+@app.on_event("startup")
+async def startup():
+    load_index()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "index_size": index_size()}
+
+
 @app.post("/generate")
 async def generate(data: GenerateRequest):
     print("Prompt:", data.prompt)
 
-    schem_filename = "test.schem"
-    source_path = os.path.join(SCHEMATICS_SOURCE_DIR, schem_filename)
-    dest_path = os.path.join(WORLDEDIT_SCHEMATICS_DIR, schem_filename)
-    os.makedirs(WORLDEDIT_SCHEMATICS_DIR, exist_ok=True)
-    shutil.copy2(source_path, dest_path)
+    dataset_idx = retrieve(data.prompt)
+    print(f"Retrieved dataset index: {dataset_idx}")
 
-    blocks, width, height, length = parse_schematic_blocks(source_path)
-    print(f"Schematic: {width}x{height}x{length}, {len(blocks)} non-air blocks")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        schem_name = "generated"
+        schem_path = os.path.join(tmpdir, f"{schem_name}.schem")
+
+        voxel_to_schem(dataset_idx, schem_path)
+
+        # Read schematic while the temp dir is still alive
+        blocks, width, height, length = parse_schematic_blocks(schem_path)
+        print(f"Schematic: {width}x{height}x{length}, {len(blocks)} non-air blocks")
+
+        # Copy to WorldEdit schematics dir for in-game use
+        dest_path = os.path.join(WORLDEDIT_SCHEMATICS_DIR, f"{schem_name}.schem")
+        os.makedirs(WORLDEDIT_SCHEMATICS_DIR, exist_ok=True)
+        shutil.copy2(schem_path, dest_path)
 
     return {
-        "schematic_path": schem_filename,
+        "schematic_path": f"{schem_name}.schem",
         "width": width,
         "height": height,
         "length": length,
-        "blocks": blocks
+        "blocks": blocks,
     }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
