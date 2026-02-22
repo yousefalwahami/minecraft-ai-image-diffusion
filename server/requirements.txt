@@ -8,4 +8,4 @@ torch
 faiss-cpu
 git+https://github.com/openai/CLIP.git
 datasets
-numpy
+numpy<2
