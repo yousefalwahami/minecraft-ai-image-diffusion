@@ -1,6 +1,6 @@
 # Minecraft AI Voxel Diffusion
 
-A text-to-Minecraft-build system. Type `/build <prompt>` in-game and a 3D diffusion model generates a voxel structure that is placed in the world, block by block, in real time. A Next.js web app provides a Three.js preview of the same output.
+A text-to-Minecraft-build system. Type `/build <prompt>` in-game and a structure is generated and placed in the world block by block, animated over ~10 seconds.
 
 ---
 
@@ -15,126 +15,155 @@ A text-to-Minecraft-build system. Type `/build <prompt>` in-game and a 3D diffus
         │
         ▼
  Inference Server (Python / FastAPI)
-  3D U-Net diffusion model + CLIP conditioning
-  returns voxel grid as JSON
+  Parses schematic / runs diffusion model
+  Returns voxel block list as JSON
         │
-        ├──► Fabric Mod animates block placement in-world (~10 s)
-        │
-        └──► Web preview renders voxels in Three.js
+        ▼
+ Fabric Mod animates block placement in-world (~10 s)
 ```
 
 ---
 
-## Repository Structure
+## Requirements
 
-| Path | Description |
-|---|---|
-| `src/` | Fabric mod (Java, Minecraft 1.21.11) |
-| `src/.../command/` | `/build` command — HTTP client, planner, animator |
-| `server/` | Python inference server (FastAPI) |
-| `server/schemgen/` | Color → block mapping and `.schem` generation utilities |
-| `website/` | Next.js 16 frontend with Three.js 3D preview |
-| `website/api/` | FastAPI backend for the website |
-
----
-
-## Components
-
-### 1. Fabric Mod — In-Game `/build` Command
-
-The mod registers a `/build <description>` command (Minecraft 1.21.11, Fabric Loader 0.18.2).
-
-- **`BuildCommand`** — sends a `POST /generate` request to the inference server asynchronously, giving in-game feedback (`Sending request...`, `Placing X blocks...`, `Done!`).
-- **`BuildPlanner`** — parses the JSON response, snaps to the player's facing direction (nearest 90°), and centres the structure `PLACE_DISTANCE` blocks ahead of the player.
-- **`BuildAnimator`** — places blocks in batches of ~1 batch per tick (50 ms), spreading the full build over ≈ 200 ticks (10 s) so the server doesn't spike.
-
-### 2. Inference Server
-
-`server/main.py` — FastAPI app that:
-
-1. Accepts `POST /generate` with `{ "prompt": "..." }`.
-2. *(Currently)* loads a test `.schem` file and parses it into a sorted block list.
-3. *(Target)* runs the diffusion model and returns the generated voxel grid.
-4. Returns `{ blocks, width, height, length }` — the exact format the Fabric mod expects.
-
-Dependencies: `fastapi`, `uvicorn`, `nbtlib`, `mcschematic`, `scikit-learn`, `colour-science`.
-
-### 3. Schemgen Pipeline
-
-`server/schemgen/` converts ML model output into Minecraft schematics:
-
-- **`col2block.py`** — maps a normalised RGBA colour to the closest Minecraft block using the pre-extracted block colour data in `schemgen/1.21.11/`.
-- **`schemgen.py`** — takes a `(W, H, L, 4)` colour array and writes a `.schem` file via `mcschematic`.
-- **`preprocess.py`** / **`extract_from_jar.py`** — data-pipeline helpers for extracting block textures and building the colour lookup table from a Minecraft JAR.
-
-### 4. Website
-
-`website/` — Next.js 16 + TypeScript + Tailwind CSS front end.
-
-- Prompt input → `POST /generate` to the FastAPI backend (`website/api/server.py`).
-- Three.js scene renders the returned voxel list as instanced cubes with orbit controls.
-- The API backend mirrors the inference server interface and can point at the real model or return dummy geometry for testing.
-
----
-
-## Roles & Workstreams
-
-> The project is split across five overlapping workstreams.
-
-| # | Area | Key tasks |
-|---|---|---|
-| 1 | **ML / Model** | Design and train the 3D U-Net diffusion model; CLIP text conditioning; DDIM sampling pipeline (noisy grid → clean voxel output) |
-| 2 | **Data Processing** | Load/clean the Kaggle Minecraft builds dataset; use `block2vec` from [text2mc-dataprocessor](https://github.com/text2mc/text2mc-dataprocessor) to convert builds to tensors; pre-compute CLIP embeddings; data augmentation (rotations, flips) |
-| 3 | **Inference Server** | Keep the model loaded in memory; expose `POST /generate`; handle request queuing so concurrent `/build` calls don't crash the process |
-| 4 | **Minecraft Integration** | Minecraft 1.21.11 server with Fabric + WorldEdit; `.schem` → world pipeline; correct block placement; clear old builds before new ones |
-| 5 | **Fabric Mod / In-Game UX** | `/build` command; HTTP client to inference server; animated block placement; in-game feedback messages |
+| Tool                     | Version |
+| ------------------------ | ------- |
+| Java JDK                 | 21+     |
+| Python                   | 3.11+   |
+| Minecraft                | 1.21.11 |
+| Fabric Loader            | 0.18.2+ |
+| Node.js _(website only)_ | 20+     |
 
 ---
 
 ## Setup
 
-### Prerequisites
+### 1. Install Fabric
 
-- Java 21+
-- Python 3.11+
-- Node.js 20+
-- Minecraft 1.21.11 with Fabric Loader 0.18.2
+1. Download the Fabric Installer from [fabricmc.net/use/installer](https://fabricmc.net/use/installer/)
+2. Run it, select Minecraft **1.21.11**, and click **Install**
+3. Open the Minecraft Launcher and select the new **Fabric** profile
 
-### Inference Server
+### 2. Install Required Mods
+
+Copy these files from the `mods/` folder in this repo into your Minecraft mods folder:
+
+- `fabric-api-0.141.3+1.21.11.jar`
+- `worldedit-mod-7.4.0.jar`
+
+**Mods folder location:**
+
+- **Windows:** `%appdata%\.minecraft\mods\`
+- **macOS:** `~/Library/Application Support/minecraft/mods/`
+- **Linux:** `~/.minecraft/mods/`
+
+> You can paste `%appdata%\.minecraft\mods\` directly into the Windows File Explorer address bar.
+
+### 3. Build and Install the Fabric Mod
+
+**Windows (CMD):**
+
+```cmd
+cd D:\path\to\minecraft-ai-image-diffusion
+gradlew build
+```
+
+**Windows (PowerShell) / macOS / Linux:**
+
+```bash
+./gradlew build
+```
+
+This produces `build/libs/ai_voxel_image_diffusion-1.0.0.jar`.  
+Copy that file into your Minecraft mods folder (same location as step 2).
+
+> If you get `java is not recognized`, make sure Java 21 is installed and on your PATH, or use the full path e.g. `"C:\Program Files\Java\jdk-21\bin\java"`.
+
+### 4. Start the Inference Server
 
 ```bash
 cd server
 pip install -r requirements.txt
-python main.py          # starts on http://localhost:8000
+
+# (First time only) Generate the test schematic:
+python generate_test_schem.py
+
+python main.py     # starts on http://localhost:8000
 ```
 
-### Fabric Mod
+The server must be running before you use `/build` in-game.
 
-```bash
-# from repo root
-./gradlew build
-# copy build/libs/<mod>.jar into your Minecraft mods/ folder
+### 5. Launch Minecraft
+
+1. Open the Minecraft Launcher
+2. Select the **Fabric 1.21.11** profile and click **Play**
+3. Load a singleplayer world (or connect to a server with the mod installed)
+
+---
+
+## In-Game Usage
+
+```
+/build <description>
 ```
 
-### Website
+Examples:
 
-```bash
-cd website
-npm install
-npm run dev             # Next.js on http://localhost:3000
-                        # FastAPI on http://localhost:5328 (via next.config.ts rewrites)
 ```
+/build a small stone house
+/build medieval castle with towers
+/build wooden cabin in a forest style
+```
+
+- Face the direction you want the building to appear
+- The structure is placed **in front of you**, centered on your crosshair
+- Blocks animate from the ground up over ~10 seconds
+
+---
+
+## Repository Structure
+
+| Path                            | Description                                 |
+| ------------------------------- | ------------------------------------------- |
+| `src/`                          | Fabric mod source (Java, Minecraft 1.21.11) |
+| `src/.../command/`              | `/build` command — HTTP, planner, animator  |
+| `server/`                       | Python inference server (FastAPI)           |
+| `server/main.py`                | Entry point — `POST /generate` endpoint     |
+| `server/generate_test_schem.py` | Generates a test `.schem` schematic         |
+| `mods/`                         | Pre-built mod JARs (Fabric API, WorldEdit)  |
+| `website/`                      | Next.js + Three.js 3D web preview           |
+
+---
+
+## How the Mod Works
+
+- **`BuildCommand`** — registers `/build <description>`, sends a `POST /generate` to the inference server asynchronously
+- **`BuildPlanner`** — parses the JSON block list, snaps placement to the nearest 90° cardinal direction, and centres the structure in front of the player
+- **`BuildAnimator`** — places blocks in batches (~200 ticks = 10 s) sorted bottom-to-top for the build-up effect
 
 ---
 
 ## Current Status
 
-| Component | Status |
-|---|---|
-| `/build` command + block animator | Working |
-| `.schem` parsing & block placement | Working |
-| Three.js web preview | Working |
-| Schemgen colour→block pipeline | Working |
-| Diffusion model (3D U-Net + CLIP) | In progress |
-| Real inference endpoint | In progress |
-| Dataset preprocessing / block2vec | In progress |
+| Component                            | Status         |
+| ------------------------------------ | -------------- |
+| `/build` command + block animator    | ✅ Working     |
+| `.schem` parsing & block placement   | ✅ Working     |
+| Directional placement (faces player) | ✅ Working     |
+| Three.js web preview                 | ✅ Working     |
+| Schemgen colour → block pipeline     | ✅ Working     |
+| Diffusion model (3D U-Net + CLIP)    | 🔄 In progress |
+| Real inference endpoint              | 🔄 In progress |
+| Dataset preprocessing / block2vec    | 🔄 In progress |
+
+---
+
+## Troubleshooting
+
+| Problem                           | Fix                                                                         |
+| --------------------------------- | --------------------------------------------------------------------------- |
+| `java is not recognized`          | Install Java 21 and add it to your PATH, then restart your terminal/VS Code |
+| `./gradlew` not recognized in CMD | Use `gradlew` (no `./`) in CMD; use `.\gradlew` in PowerShell               |
+| `[Build] HTTP request failed`     | Make sure `python main.py` is running in the `server/` folder               |
+| Mod doesn't appear in-game        | Check the jar is in `.minecraft/mods/` and Fabric Loader is installed       |
+| Blocks place only 1 block         | Re-run `python generate_test_schem.py` to regenerate `test.schem`           |
